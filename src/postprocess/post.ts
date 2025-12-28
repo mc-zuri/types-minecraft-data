@@ -1,5 +1,5 @@
-import { EnumData, match } from "@alan404/enum";
-import { TSType } from "../ts/tstype.js";
+import { type EnumData, match } from "@alan404/enum";
+import { TSType } from "../ts/tstype.ts";
 
 const isWrapper = (t?: TSType) =>
     !!t && (t.type === "Union" || t.type === "Intersection" || t.type === "Array");

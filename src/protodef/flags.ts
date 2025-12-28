@@ -1,5 +1,5 @@
-import { indent, lines } from "../codegen.js";
-import { TSType } from "../ts/tstype.js";
+
+import { TSType } from "../ts/tstype.ts";
 import type { ProtoDefinition } from "./protodef.js";
 
 export const flagsType = (names: string[]) => {

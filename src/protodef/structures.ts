@@ -1,8 +1,8 @@
-import { indent, lines } from "../codegen.js";
-import { TSType } from "../ts/tstype.js";
-import type { Ctx } from "./ctx.js";
-import { protoDefToType } from "./index.js";
+import { TSType } from "../ts/tstype.ts";
+import type { Ctx } from "./ctx.ts";
+import { protoDefToType } from "./index.ts";
 import type { ProtoDefinition } from "./protodef.js";
+
 
 export const protoDefArray = (args: ProtoDefinition.ArrayArgs, ctx: Ctx) => {
     return TSType.Array(protoDefToType(args.type, ctx));

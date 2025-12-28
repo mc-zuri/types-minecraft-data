@@ -1,6 +1,6 @@
 import { createFactory, match } from "@alan404/enum";
 import type { Enum } from "@alan404/enum";
-import { indent } from "../codegen.js";
+import { indent } from "../codegen.ts";
 
 export type TSType = Enum<{
     // Type: { type: TSType };

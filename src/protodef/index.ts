@@ -1,11 +1,12 @@
-import { ProtoDefinition } from "./protodef.js";
-import { protoDefBasicToType } from "./primitive.js";
-import { protoDefBitfield, protoDefBitflags, protoDefMapper } from "./flags.js";
-import { Ctx } from "./ctx.js";
-import { protoDefSwitch } from "./conditional.js";
-import { protoDefArray, protoDefContainer } from "./structures.js";
-import { mcDataCustomProtoDefs, protoDefRegistryEntryHolder, protoDefRegistryEntryHolderSet } from "./mcdata.js";
-import { TSType } from "../ts/tstype.js";
+import type { ProtoDefinition } from "./protodef.js";
+import { protoDefBasicToType } from "./primitive.ts";
+import { protoDefBitfield, protoDefBitflags, protoDefMapper } from "./flags.ts";
+import { type Ctx } from "./ctx.ts";
+import { protoDefSwitch } from "./conditional.ts";
+import { protoDefArray, protoDefContainer } from "./structures.ts";
+import { mcDataCustomProtoDefs, protoDefRegistryEntryHolder, protoDefRegistryEntryHolderSet } from "./mcdata.ts";
+import { TSType } from "../ts/tstype.ts";
+
 
 function resolvePath(path: string[], compareTo: string): string {
     const parts = compareTo.split("/");

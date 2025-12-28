@@ -1,4 +1,4 @@
-import { TSType } from "../ts/tstype.js";
+import { TSType } from "../ts/tstype.ts";
 import type { ProtoDefinition } from "./protodef.js";
 
 export const protoDefNumericTypes = [

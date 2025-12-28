@@ -1,14 +1,14 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import type { ProtoDefinition } from "./protodef/protodef.js";
-import { indent, lines } from "./codegen.js";
-import { getDataPaths, getJSON, mcDataPath } from "./data.js";
-import { replaceMap } from "./utils.js";
-import { protoDefToType } from "./protodef/index.js";
-import { protoDefNativeTypes } from "./protodef/primitive.js";
-import { mcDataCustomProtoDefs } from "./protodef/mcdata.js";
-import { camelCase, createCtx } from "./protodef/ctx.js";
-import { TSType, TSTypeToString } from "./ts/tstype.js";
-import { postprocess } from "./postprocess/post.js";
+import { getDataPaths, getJSON, mcDataPath } from "./data.ts";
+import { replaceMap } from "./utils.ts";
+import { protoDefToType } from "./protodef/index.ts";
+import { protoDefNativeTypes } from "./protodef/primitive.ts";
+import { mcDataCustomProtoDefs } from "./protodef/mcdata.ts";
+import { camelCase, createCtx } from "./protodef/ctx.ts";
+import { TSType, TSTypeToString } from "./ts/tstype.ts";
+import { postprocess } from "./postprocess/post.ts";
+import { lines, indent } from "./codegen.ts";
 
 export type DtsNamespace = {
     namespace: string;
@@ -123,7 +123,7 @@ export const generateDefinitions = () => {
 
 const main = () => {
     if (true) {
-        let d = generateDefinitionsFor("pc/1.21.5");
+        let d = generateDefinitionsFor("bedrock/1.21.130");
         writeFileSync("./gen/test.d.ts", dtsToString(d));
         writeFileSync("./gen/test.json", JSON.stringify(d, null, 2));
     } else {
@@ -131,3 +131,4 @@ const main = () => {
     }
 };
 main()
+ 

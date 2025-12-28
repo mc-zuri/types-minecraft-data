@@ -1,7 +1,7 @@
-import { TSType } from "../ts/tstype.js";
-import { Ctx } from "./ctx.js";
-import { protoDefToType } from "./index.js";
-import { ProtoDefinition } from "./protodef.js";
+import { TSType } from "../ts/tstype.ts";
+import type { Ctx } from "./ctx.ts";
+import { protoDefToType } from "./index.ts";
+import type { ProtoDefinition } from "./protodef.js";
 
 export const mcDataCustomProtoDefs: { [ty: string]: TSType } = {
     string: TSType.Reference("string"),

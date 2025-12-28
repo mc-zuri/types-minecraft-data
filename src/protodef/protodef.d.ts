@@ -1,7 +1,7 @@
 export namespace ProtoDefinition {
     export type Protocol = {
         types: Partial<Record<string, Type>>;
-        [field?: string]: Protocol;
+        //[field: string]: Protocol;
     };
 
     export type Type =
@@ -63,4 +63,4 @@ export namespace ProtoDefinition {
         | ["registryEntryHolder", RegistryEntryHolderArgs]
         | ["registryEntryHolderSet", RegistryEntryHolderSetArgs]
         ;
-};
+}
