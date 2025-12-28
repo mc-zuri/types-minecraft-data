@@ -1,7 +1,7 @@
 import type { ProtoDefinition } from "./protodef.js";
 
 export const camelCase = (s: string) => {
-    return s.split("_").map(x => x[0]?.toUpperCase() + x.slice(1)).join("");
+    return s;//s.split("_").map(x => x[0]?.toUpperCase() + x.slice(1)).join("");
 };
 
 export interface Ctx {

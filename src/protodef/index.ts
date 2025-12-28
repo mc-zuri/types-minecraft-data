@@ -4,7 +4,7 @@ import { protoDefBitfield, protoDefBitflags, protoDefMapper } from "./flags.ts";
 import { type Ctx } from "./ctx.ts";
 import { protoDefSwitch } from "./conditional.ts";
 import { protoDefArray, protoDefContainer } from "./structures.ts";
-import { mcDataCustomProtoDefs, protoDefRegistryEntryHolder, protoDefRegistryEntryHolderSet } from "./mcdata.ts";
+import { mcCustomTypes, mcDataCustomProtoDefs, protoDefRegistryEntryHolder, protoDefRegistryEntryHolderSet } from "./mcdata.ts";
 import { TSType } from "../ts/tstype.ts";
 
 
@@ -29,21 +29,48 @@ export const protoDefToType = (
     type: ProtoDefinition.Type,
     ctx: Ctx,
 ): TSType => {
-    let native = protoDefBasicToType(type);
-    if (native) return native;
-
-    if (typeof type == "string" && mcDataCustomProtoDefs[type])
-        return mcDataCustomProtoDefs[type];
-
+    // Check builtin types first (string types)
     if (typeof type == "string") {
+        if (mcDataCustomProtoDefs[type]) {
+            return mcDataCustomProtoDefs[type];
+        }
+
+        // Try to resolve as a custom type in the protocol
         let newType = ctx.resolveType(type);
         if (newType) return TSType.Reference(newType);
+
+        // Unknown type
         return TSType.Reference(`\`$${type}\``);
     }
 
+    // Handle tuple types like ["buffer", args]
+    let native = protoDefBasicToType(type);
+    if (native) return native;
+
     const [typeName, args] = type;
 
-    if (typeName == "count") return TSType.Reference("unique symbol");
+    if (typeName == "count") {
+        // Count is a wrapper that indicates this field's value is used to determine array length
+        // Extract the underlying type (e.g., i16, i32)
+        return protoDefToType((args as any).type, ctx);
+    }
+    if (typeName == "encapsulated") {
+        // Encapsulated is a wrapper for serialization - extract the inner type
+        return protoDefToType((args as any).type, ctx);
+    }
+
+    if(mcCustomTypes.includes(typeName)){
+        const resolvedType = ctx.resolveType(typeName);
+        if (resolvedType) return TSType.Reference(resolvedType);
+        return TSType.Reference(typeName);
+    }
+
+    if (typeName == "enum_size_based_on_values_len") {
+        // Reference the enum_size_based_on_values_len type by name
+        const resolvedType = ctx.resolveType("enum_size_based_on_values_len");
+        if (resolvedType) return TSType.Reference(resolvedType);
+        return TSType.Reference("enum_size_based_on_values_len");
+    }
     if (typeName == "option") return TSType.Union([
         protoDefToType(args as ProtoDefinition.Type, ctx),
         TSType.Reference("undefined"),

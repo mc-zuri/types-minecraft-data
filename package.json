@@ -1,23 +1,39 @@
 {
-  "name": "@deniz-blue/types-minecraft-data",
+  "name": "@mc-zuri-org/types-minecraft-data",
   "version": "1.0.0",
-  "description": "",
+  "description": "TypeScript type generator for Minecraft protocol data",
   "type": "module",
   "main": "index.js",
+  "bin": {
+    "generate-mc-types": "./bin.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node src/index.ts"
+    "start": "src/index.ts",
+    "gen": "src/index.ts",
+    "gen:bedrock": "src/index.ts bedrock",
+    "gen:pc": "src/index.ts pc",
+    "gen:all": "src/index.ts"
   },
-  "keywords": [],
+  "keywords": ["minecraft", "protocol", "types", "typescript", "codegen"],
   "author": "",
   "license": "MIT",
   "packageManager": "pnpm@10.5.2",
+  "files": [
+    "bin.ts",
+    "src/**/*.ts",
+    "gen/types/**/*.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
   "devDependencies": {
     "@types/node": "^24.3.0",
     "protodef": "^1.19.0",
     "typescript": "^5.9.2"
   },
   "dependencies": {
-    "@alan404/enum": "^0.2.3"
+    "@alan404/enum": "^0.2.3",
+    "yaml": "^2.8.2",
+    "minecraft-data": "^3.102.3"
   }
 }
