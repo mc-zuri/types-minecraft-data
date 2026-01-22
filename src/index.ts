@@ -10,7 +10,7 @@ import { camelCase, createCtx } from "./protodef/ctx.ts";
 import { TSType, TSTypeToString } from "./ts/tstype.ts";
 import { postprocess } from "./postprocess/post.ts";
 import { lines, indent } from "./codegen.ts";
-import { loadProtocolComments, type CommentMap } from "./comments/extract.ts";
+import { loadProtocolComments, loadPacketEvents, type CommentMap, type PacketEventInfo } from "./comments/extract.ts";
 import path from "path";
 
 export type DtsNamespace = {
@@ -23,22 +23,132 @@ function toSnakeCase(str: string): string {
     return str.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
 }
 
-export const dtsToString = (list: DtsNamespace[], commentMap: CommentMap = {}) => {
-    // Generate the namespace content first
-    const namespaceContent = list.map(({ namespace, types }) => (
-        lines([
+/**
+ * Generates event map interfaces for TypedEmitter based on packet event information.
+ * Creates ClientboundPacketEventMap and ServerboundPacketEventMap.
+ * Uses the exact event names from proto.yml (packet names without "packet_" prefix).
+ */
+export const generateEventMapInterfaces = (
+    namespace: string,
+    packetEvents: PacketEventInfo[]
+): string => {
+    const clientBoundPackets: string[] = [];
+    const serverBoundPackets: string[] = [];
+
+    // Separate packets by bound direction
+    for (const { eventName, packetType, bound } of packetEvents) {
+        // Use packet type directly since we're inside the namespace
+        const eventEntry = `${eventName}: (packet: ${packetType}) => void;`;
+
+        if (bound === 'client' || bound === 'both') {
+            clientBoundPackets.push(eventEntry);
+        }
+        if (bound === 'server' || bound === 'both') {
+            serverBoundPackets.push(eventEntry);
+        }
+    }
+
+    const clientBoundInterface = lines([
+        '/**',
+        ' * Event map for client-bound packets.',
+        ' * Use with TypedEmitter to get type-safe event handling.',
+        ' */',
+        'export interface ClientboundPacketEventMap {',
+        indent(clientBoundPackets.sort()),
+        '}',
+    ]);
+
+    const serverBoundInterface = lines([
+        '/**',
+        ' * Event map for server-bound packets.',
+        ' * Use with TypedEmitter to get type-safe event handling.',
+        ' */',
+        'export interface ServerboundPacketEventMap {',
+        indent(serverBoundPackets.sort()),
+        '}',
+    ]);
+
+    // Only add BedrockClient interface and helpers for Bedrock protocol
+    const isBedrock = namespace.includes('Bedrock');
+
+    const bedrockExtras = isBedrock ? lines([
+        '',
+        'export type Arguments<T> = [T] extends [(...args: infer U) => any] ? U : [T] extends [void] ? [] : [T];',
+        '',
+        '/**',
+        ' * Status of the Bedrock client connection.',
+        ' */',
+        'export enum ClientStatus {',
+        indent([
+            'Disconnected,',
+            'Authenticating,',
+            'Initializing,',
+            'Initialized',
+        ]),
+        '}',
+        '',
+        '/**',
+        ' * Bedrock client interface with type-safe packet handling.',
+        ' */',
+        'export interface BedrockClient {',
+        indent([
+            'readonly entityId: bigint;',
+            'readonly status: ClientStatus;',
+            '',
+            'close(reason?: string): void;',
+            'disconnect(): void;',
+            '',
+            'on<E extends keyof ClientboundPacketEventMap>(event: E, listener: ClientboundPacketEventMap[E]): any;',
+            'off<E extends keyof ClientboundPacketEventMap>(event: E, listener: ClientboundPacketEventMap[E]): any;',
+            'write<E extends keyof ServerboundPacketEventMap>(event: E, ...args: Arguments<ServerboundPacketEventMap[E]>): boolean;',
+            'queue<E extends keyof ServerboundPacketEventMap>(event: E, ...args: Arguments<ServerboundPacketEventMap[E]>): boolean;',
+            'sendBuffer(buffer: Buffer, immediate?: boolean): void;',
+        ]),
+        '}',
+    ]) : '';
+
+    return lines([
+        clientBoundInterface,
+        '',
+        serverBoundInterface,
+        bedrockExtras,
+    ]);
+};
+
+export const dtsToString = (
+    list: DtsNamespace[],
+    commentMap: CommentMap = {},
+    packetEvents?: PacketEventInfo[],
+    rootNamespace?: string
+) => {
+    // Generate event map interfaces for bedrock packets if packet events are provided
+    const eventMapInterfaces = (packetEvents && packetEvents.length > 0 && rootNamespace)
+        ? generateEventMapInterfaces(rootNamespace, packetEvents)
+        : '';
+
+    // Generate the namespace content with event maps inside
+    const namespaceContent = list.map(({ namespace, types }) => {
+        const typeDefinitions = Object.entries(types).map(([identifier, ts]) => {
+            const snakeCaseId = toSnakeCase(identifier);
+            const comments = commentMap[snakeCaseId] || commentMap[identifier] || [];
+            const jsdoc = comments.length > 0
+                ? `/**\n * ${comments.join('\n * ')}\n */\n`
+                : '';
+            return `${jsdoc}export type ${identifier} = ${TSTypeToString(ts, commentMap, snakeCaseId)};`;
+        });
+
+        // Add event map interfaces at the end of the namespace if this is the root namespace
+        const namespaceEventMaps = (eventMapInterfaces && namespace === rootNamespace)
+            ? '\n\n' + indent(eventMapInterfaces)
+            : '';
+
+        return lines([
             `export namespace ${namespace} {`,
-            indent(Object.entries(types).map(([identifier, ts]) => {
-                const snakeCaseId = toSnakeCase(identifier);
-                const comments = commentMap[snakeCaseId] || commentMap[identifier] || [];
-                const jsdoc = comments.length > 0
-                    ? `/**\n * ${comments.join('\n * ')}\n */\n`
-                    : '';
-                return `${jsdoc}export type ${identifier} = ${TSTypeToString(ts, commentMap, snakeCaseId)};`;
-            })),
+            indent(typeDefinitions),
+            namespaceEventMaps,
             `}`,
-        ])
-    )).join("\n\n");
+        ]);
+    }).join("\n\n");
 
     // Check if NBT is referenced anywhere in the output
     const usesNBT = namespaceContent.includes("NBT.Root") || namespaceContent.includes("NBT.");
@@ -50,9 +160,8 @@ export const dtsToString = (list: DtsNamespace[], commentMap: CommentMap = {}) =
     }
 
     // Combine imports and content
-    return imports.length > 0
-        ? imports.join("\n") + "\n\n" + namespaceContent
-        : namespaceContent;
+    const importsStr = imports.length > 0 ? imports.join("\n") + "\n\n" : "";
+    return importsStr + namespaceContent;
 };
 
 export const generateProtocolTypesFor = (
@@ -170,11 +279,24 @@ const generateForVersion = (platform: "bedrock" | "pc", version: string) => {
         console.log(`  Loaded ${Object.keys(commentMap).length} comments`);
     }
 
+    // Load packet events from YAML files (only for bedrock)
+    const packetEvents = platform === "bedrock"
+        ? loadPacketEvents(version, dataDir)
+        : [];
+
+    if (packetEvents.length > 0) {
+        console.log(`  Loaded ${packetEvents.length} packet events`);
+        const clientCount = packetEvents.filter(e => e.bound === 'client' || e.bound === 'both').length;
+        const serverCount = packetEvents.filter(e => e.bound === 'server' || e.bound === 'both').length;
+        console.log(`    Client-bound: ${clientCount}, Server-bound: ${serverCount}`);
+    }
+
     const dts = generateDefinitionsFor(pathId);
     const namespace = pathIdToVersionNamespace(pathId);
+    const rootNamespace = "MCProtocol." + namespace;
 
     mkdirSync(`./types`, { recursive: true });
-    writeFileSync(`./types/${namespace}.d.ts`, dtsToString(dts, commentMap));
+    writeFileSync(`./types/${namespace}.d.ts`, dtsToString(dts, commentMap, packetEvents, rootNamespace));
     console.log(`  ✓ Generated ./types/${namespace}.d.ts`);
 };
 

@@ -88,6 +88,130 @@ export function extractCommentsFromYAML(yamlContent: string): CommentMap {
  * Loads YAML files and extracts comments from bedrock protocol files.
  * Falls back to 'latest' directory if YAML files don't exist for the specific version.
  */
+export interface PacketBoundInfo {
+    [packetName: string]: 'client' | 'server' | 'both';
+}
+
+export interface PacketEventInfo {
+    eventName: string;
+    packetType: string;
+    bound: 'client' | 'server' | 'both';
+}
+
+/**
+ * Extracts packet bound information from proto.yml.
+ * Maps packet names to their bound direction (client, server, or both).
+ */
+export function extractPacketBounds(yamlContent: string): PacketBoundInfo {
+    const boundMap: PacketBoundInfo = {};
+    const lines = yamlContent.split('\n');
+    let currentPacket: string | null = null;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+
+        // Match packet definitions (e.g., "packet_login:")
+        if (/^packet_\w+:/.test(trimmed)) {
+            currentPacket = trimmed.slice(0, -1); // Remove trailing ':'
+        }
+
+        // Match bound annotations
+        if (trimmed.startsWith('!bound:') && currentPacket) {
+            const bound = trimmed.split(':')[1]?.trim() as 'client' | 'server' | 'both';
+            if (bound) {
+                boundMap[currentPacket] = bound;
+            }
+            currentPacket = null; // Reset for next packet
+        }
+    }
+
+    return boundMap;
+}
+
+/**
+ * Extracts packet event information from proto.yml.
+ * Returns array of packets with their event names (without packet_ prefix), packet types, and bounds.
+ */
+export function extractPacketEvents(yamlContent: string): PacketEventInfo[] {
+    const events: PacketEventInfo[] = [];
+    const lines = yamlContent.split('\n');
+    let currentPacket: string | null = null;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+
+        // Match packet definitions (e.g., "packet_login:")
+        if (/^packet_\w+:/.test(trimmed)) {
+            currentPacket = trimmed.slice(0, -1); // Remove trailing ':'
+        }
+
+        // Match bound annotations
+        if (trimmed.startsWith('!bound:') && currentPacket) {
+            const bound = trimmed.split(':')[1]?.trim() as 'client' | 'server' | 'both';
+            if (bound) {
+                // Remove "packet_" prefix to get event name
+                const eventName = currentPacket.replace(/^packet_/, '');
+                events.push({
+                    eventName,
+                    packetType: currentPacket,
+                    bound
+                });
+            }
+            currentPacket = null; // Reset for next packet
+        }
+    }
+
+    return events;
+}
+
+/**
+ * Loads packet bound information from bedrock protocol files.
+ * Falls back to 'latest' directory if proto.yml doesn't exist for the specific version.
+ */
+export function loadPacketBounds(version: string, dataDir: string): PacketBoundInfo {
+    const versionDir = path.join(dataDir, 'bedrock', version);
+    const latestDir = path.join(dataDir, 'bedrock', 'latest');
+
+    let protoPath = path.join(versionDir, 'proto.yml');
+
+    // Fallback to latest if file doesn't exist
+    if (!fs.existsSync(protoPath)) {
+        protoPath = path.join(latestDir, 'proto.yml');
+    }
+
+    if (fs.existsSync(protoPath)) {
+        const protoYaml = fs.readFileSync(protoPath, 'utf-8');
+        return extractPacketBounds(protoYaml);
+    }
+
+    return {};
+}
+
+/**
+ * Loads packet event information from bedrock protocol files.
+ * Falls back to 'latest' directory if proto.yml doesn't exist for the specific version.
+ */
+export function loadPacketEvents(version: string, dataDir: string): PacketEventInfo[] {
+    const versionDir = path.join(dataDir, 'bedrock', version);
+    const latestDir = path.join(dataDir, 'bedrock', 'latest');
+
+    let protoPath = path.join(versionDir, 'proto.yml');
+
+    // Fallback to latest if file doesn't exist
+    if (!fs.existsSync(protoPath)) {
+        protoPath = path.join(latestDir, 'proto.yml');
+    }
+
+    if (fs.existsSync(protoPath)) {
+        const protoYaml = fs.readFileSync(protoPath, 'utf-8');
+        return extractPacketEvents(protoYaml);
+    }
+
+    return [];
+}
+
 export function loadProtocolComments(version: string, dataDir: string): CommentMap {
     const versionDir = path.join(dataDir, 'bedrock', version);
     const latestDir = path.join(dataDir, 'bedrock', 'latest');
